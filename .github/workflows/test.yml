@@ -1,0 +1,47 @@
+name: test
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+env:
+  BATON_VERSION: d6a93d3ffb4784da45ff19c989752d1a74318829  # baton 1.4 (adds `baton report`); switch to v1 once 1.4.0 is released
+jobs:
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: action
+      - uses: TheKathan/setup-baton@v1
+        with:
+          version: ${{ env.BATON_VERSION }}
+      - name: A scratch repo with a PR branch whose task board has an open question
+        run: |
+          git init -q -b main . && git config user.name test && git config user.email test@example.com
+          git commit -q --allow-empty -m init && git checkout -q -b fix/T-2
+          baton init --sandbox --task T-2 && baton post Q --as qa --to backend --title "Is the route ready?" "x"
+          baton finish && git add .baton/tasks && git commit -q -m "T-2 board"
+      - uses: ./action
+        id: open
+        continue-on-error: true
+        with: { base: main, install: false }
+      - name: the check fails while Q-001 is open
+        run: test "${{ steps.open.outcome }}" = failure && test "${{ steps.open.outputs.open }}" = 1
+      - run: baton reply Q-001 --as backend --close "yes" && baton finish && git add .baton/tasks && git commit -q -m settled
+      - uses: ./action
+        id: done
+        with: { base: main, install: false }
+      - run: test "${{ steps.done.outputs.open }}" = 0 && test -s "${{ steps.done.outputs.report-file }}"
+      - name: a PR without task boards passes
+        run: git checkout -q main
+      - uses: ./action
+        id: none
+        with: { base: main, install: false }
+      - run: test "${{ steps.none.outputs.open }}" = 0 && test -z "${{ steps.none.outputs.report-file }}"

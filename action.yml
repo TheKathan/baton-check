@@ -1,0 +1,73 @@
+name: baton PR check
+description: Report on the baton task boards a pull request adds or changes, and fail while any has open questions or blockers.
+author: TheKathan
+branding:
+  icon: check-circle
+  color: orange
+
+inputs:
+  base:
+    description: The git ref to compare with. Default the pull request's base branch.
+    default: ""
+  strict:
+    description: Fail while a task board has open questions or blockers.
+    default: "true"
+  install:
+    description: Install baton first with TheKathan/setup-baton. Set to "false" if an earlier step did.
+    default: "true"
+  version:
+    description: baton version to install (see TheKathan/setup-baton).
+    default: v1
+
+outputs:
+  report-file:
+    description: Path of the Markdown report (empty when no task board changed).
+    value: ${{ steps.report.outputs.report-file }}
+  open:
+    description: Number of open questions and blockers across the changed task boards.
+    value: ${{ steps.report.outputs.open }}
+
+runs:
+  using: composite
+  steps:
+    - uses: TheKathan/setup-baton@v1
+      if: inputs.install == 'true'
+      with:
+        version: ${{ inputs.version }}
+    - id: report
+      name: Report on changed task boards
+      shell: bash
+      env:
+        BASE: ${{ inputs.base || github.base_ref }}
+        STRICT: ${{ inputs.strict }}
+      run: |
+        if [ -z "$BASE" ]; then
+          echo "::error::no base to compare with: run on pull_request, or set the base input"
+          exit 1
+        fi
+        if [ "$(git rev-parse --is-shallow-repository)" = "true" ]; then
+          git fetch --no-tags --quiet --unshallow origin  # the merge base needs history
+        fi
+        ref="$BASE"
+        if ! git rev-parse --verify --quiet "$ref^{commit}" >/dev/null; then
+          git fetch --no-tags --quiet origin "+refs/heads/$BASE:refs/remotes/origin/$BASE"
+          ref="origin/$BASE"
+        fi
+        json="$(baton report --since "$ref" --json)"
+        case "$json" in
+          "["*) ;;
+          *) echo "$json"; echo "No baton task boards changed in this pull request." >> "$GITHUB_STEP_SUMMARY"
+             echo "report-file=" >> "$GITHUB_OUTPUT"; echo "open=0" >> "$GITHUB_OUTPUT"; exit 0 ;;
+        esac
+        report="$RUNNER_TEMP/baton-report.md"
+        baton report --since "$ref" --summary "$report"
+        cat "$report" >> "$GITHUB_STEP_SUMMARY"
+        open="$(printf '%s' "$json" | python3 -c 'import json,sys; print(sum(len(r["open_asks"]) for r in json.load(sys.stdin)))')"
+        echo "report-file=$report" >> "$GITHUB_OUTPUT"
+        echo "open=$open" >> "$GITHUB_OUTPUT"
+        if [ "$STRICT" = "true" ] && [ "$open" != "0" ]; then
+          printf '%s' "$json" | python3 -c 'import json,sys
+        for r in json.load(sys.stdin):
+            if r["open_asks"]: print("::error::%s: still open: %s" % (r["task"], ", ".join(r["open_asks"])))'
+          exit 1
+        fi

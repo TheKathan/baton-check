@@ -46,7 +46,7 @@ runs:
           exit 1
         fi
         if [ "$(git rev-parse --is-shallow-repository)" = "true" ]; then
-          git fetch --no-tags --quiet --unshallow origin  # the merge base needs history
+          git fetch --no-tags --quiet --unshallow origin
         fi
         ref="$BASE"
         if ! git rev-parse --verify --quiet "$ref^{commit}" >/dev/null; then

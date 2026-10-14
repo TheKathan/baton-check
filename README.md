@@ -1,3 +1,12 @@
+<p align="center"><a href="https://github.com/TheKathan/baton"><picture><source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/TheKathan/baton/v1/assets/banner-dark.svg"><img alt="baton: hand-offs for AI agents that build software together" src="https://raw.githubusercontent.com/TheKathan/baton/v1/assets/banner-light.svg" width="720"></picture></a></p>
+
+<p align="center">
+  <img alt="latest release" src="https://img.shields.io/github/v/release/TheKathan/baton-check">
+  <img alt="license" src="https://img.shields.io/github/license/TheKathan/baton-check">
+  <a href="https://github.com/TheKathan/baton"><img alt="baton 1.4+" src="https://img.shields.io/badge/baton-%E2%89%A5%201.4-F76707"></a>
+  <img alt="runners: Linux, macOS" src="https://img.shields.io/badge/runners-Linux%20%7C%20macOS-555">
+</p>
+
 # baton PR check
 
 Reports on the [baton](https://github.com/TheKathan/baton) task boards (`.baton/tasks/*.jsonl`) a pull request adds or changes, and fails while any has open questions or blockers. Make it a required check, and a PR from an agent can't merge until its agents' questions are settled.
